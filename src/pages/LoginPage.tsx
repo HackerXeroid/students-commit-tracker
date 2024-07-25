@@ -40,6 +40,7 @@ function LoginPage() {
     } catch (err) {
       let errorMessage;
       if (err instanceof Error) {
+        console.log(err.message);
         errorMessage = err.message;
       } else errorMessage = "Something went wrong";
 

@@ -7,18 +7,23 @@ import HomePage from "@/pages/HomePage";
 import { LoaderProvider } from "./contexts/LoaderContext";
 import ErrorPage from "./pages/ErrorPage";
 import LeaderboardPage from "./pages/Leaderboard/LeaderboardPage";
+import NavBar from "./components/NavBar";
+import { TooltipProvider } from "./components/ui/tooltip";
 
 function App() {
   return (
     <UserProvider>
       <LoaderProvider>
         <BrowserRouter>
+          <NavBar />
           <Routes>
             <Route
               index
               element={
                 <ProtectedRoute>
-                  <HomePage />
+                  <TooltipProvider>
+                    <HomePage />
+                  </TooltipProvider>
                 </ProtectedRoute>
               }
             />
