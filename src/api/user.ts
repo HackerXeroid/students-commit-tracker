@@ -4,6 +4,7 @@ type UserRegisterReq = {
   name: string;
   email: string;
   password: string;
+  role: "student" | "teacher_pending";
 };
 
 const RegisterUser = async (userData: UserRegisterReq) => {
@@ -42,8 +43,22 @@ const GetCurrentUser = async () => {
 
     return response.data;
   } catch (err) {
+    if (err instanceof Error)
+      console.error(err.message);
     throw err;
   }
 };
 
-export { RegisterUser, LoginUser, GetCurrentUser };
+const DeleteUser = async () => {
+  try {
+    await axiosInstance.delete("/api/v1/users",  {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    });
+  } catch (err) {
+    throw err;
+  }
+}
+
+export { RegisterUser, LoginUser, GetCurrentUser, DeleteUser };

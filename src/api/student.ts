@@ -1,8 +1,8 @@
 import axiosInstance from ".";
 
-async function GetAssignmentsData() {
+async function GetAssignments() {
   try {
-    const response = await axiosInstance.get("/api/v1/assignments", {
+    const response = await axiosInstance.get("/api/v1/student/assignments", {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("token")}`,
       },
@@ -13,4 +13,4 @@ async function GetAssignmentsData() {
   }
 }
 
-export { GetAssignmentsData };
+export { GetAssignments };

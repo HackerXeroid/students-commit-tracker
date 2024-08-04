@@ -6,7 +6,7 @@ export interface User {
   email: string;
   password: string;
   createdAt?: Date;
-  role: "student" | "teacher";
+  role: "student" | "teacher" | "admin" | "teacher_pending" | "teacher_rejected";
 }
 
 export type UserOrNull = User | null;

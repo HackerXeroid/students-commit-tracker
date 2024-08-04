@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useContext } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -10,16 +11,19 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RegisterUser } from "@/api/users";
+import { RegisterUser } from "@/api/user";
 import { useToast } from "@/components/ui/use-toast";
 import { useEffect } from "react";
+import { UserContext } from "@/contexts/UserContext";
+
+import RadioGroup from "@/components/RadioGroup";
 
 function RegisterPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
-
+  const { userState } = useContext(UserContext);
   useEffect(() => {
-    if (localStorage.getItem("token")) {
+    if (userState?.user) {
       navigate("/");
     }
   }, []);
@@ -27,14 +31,17 @@ function RegisterPage() {
   const submitHandler = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
-    console.log(form.elements);
     const name = (form.elements.namedItem("name") as HTMLInputElement).value;
     const email = (form.elements.namedItem("email") as HTMLInputElement).value;
     const password = (form.elements.namedItem("password") as HTMLInputElement)
       .value;
+    const teacher = form.elements.namedItem("teacher") as HTMLInputElement;
+
+    let role: "student" | "teacher_pending" = "student";
+    if (teacher.ariaChecked === "true") role = "teacher_pending";
 
     try {
-      const res = await RegisterUser({ name, email, password });
+      const res = await RegisterUser({ name, email, password, role });
 
       if (res.success) {
         toast({
@@ -98,6 +105,7 @@ function RegisterPage() {
                   required
                 />
               </div>
+              <RadioGroup />
               <Button type="submit" className="w-full">
                 Create an account
               </Button>

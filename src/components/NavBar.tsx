@@ -1,5 +1,5 @@
 import { UserContext } from "@/contexts/UserContext";
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { avatarUrl } from "@/utils/avatarUtils";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -21,6 +21,13 @@ function NavBar() {
   const { toast } = useToast();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      document.body.style.removeProperty("pointer-events");
+      document.body.removeAttribute("data-scroll-locked");
+    }
+  }, [open]);
 
   const logoutHandler = () => {
     localStorage.removeItem("token");
@@ -53,7 +60,7 @@ function NavBar() {
   };
 
   return (
-    <nav className="flex justify-end items-center p-4 bg-background fixed top-0 left-0 right-0">
+    <nav className="flex justify-end items-center p-4 fixed top-0 left-0 right-0">
       {userState.user && (
         <DropdownMenu open={open} onOpenChange={setOpen}>
           <DropdownMenuTrigger asChild>

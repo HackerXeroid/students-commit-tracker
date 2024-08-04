@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-
+import { useContext } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,11 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import { LoginUser } from "@/api/users";
+import { LoginUser } from "@/api/user";
+import { UserContext } from "@/contexts/UserContext";
 
 function LoginPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { userState } = useContext(UserContext);
 
   const submitHandler = async (e: React.FormEvent<HTMLFormElement>) => {
     try {
@@ -54,7 +56,7 @@ function LoginPage() {
   };
 
   useEffect(() => {
-    if (localStorage.getItem("token")) {
+    if (userState?.user) {
       navigate("/");
     }
   }, []);

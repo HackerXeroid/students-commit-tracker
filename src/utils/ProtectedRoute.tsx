@@ -4,7 +4,7 @@ import { UserContext } from "@/contexts/UserContext";
 import { useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Loader from "../components/Loader";
-import { GetCurrentUser } from "@/api/users";
+import { GetCurrentUser } from "@/api/user";
 import { useToast } from "@/components/ui/use-toast";
 
 function ProtectedRoute({ children }: WrapperComponentProps) {
@@ -31,7 +31,8 @@ function ProtectedRoute({ children }: WrapperComponentProps) {
       });
 
       const response = await GetCurrentUser();
-      sessionStorage.setItem("user", JSON.stringify(response.data));
+      if (response.data.role === "student" || response.data.role === "teacher")
+        sessionStorage.setItem("user", JSON.stringify(response.data));
       userDispatch({ type: "LOGIN_USER", payload: response.data });
       toast({
         variant: "default",

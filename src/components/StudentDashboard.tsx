@@ -26,10 +26,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { GetAssignmentsData } from "@/api/assignments";
+import { GetAssignments } from "@/api/student";
 import { useToast } from "./ui/use-toast";
 import { LoaderContext } from "@/contexts/LoaderContext";
-import Loader from "./Loader";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import {
@@ -63,20 +62,21 @@ const StudentDashboard: React.FC = () => {
 
   const totalAssignments = assignments.length;
   const completedAssignments = assignments.filter(
-    (assignment) => assignment.status !== "Pending"
+    (assignment) => assignment.status === "Completed"
   ).length;
 
   const gradedAssignments = assignments.filter(
     (assignment) => assignment.yourScore !== null
   );
 
-  const averageScore = Math.round(
-    gradedAssignments.reduce(
-      (acc, assignment) =>
-        acc + (assignment.yourScore! * 100) / assignment.totalScore,
-      0
-    ) / gradedAssignments.length
+  let averageScore = gradedAssignments.reduce(
+    (acc, assignment) =>
+      acc + (assignment.yourScore! * 100) / assignment.totalScore,
+    0
   );
+
+  if (gradedAssignments.length > 0) averageScore /= gradedAssignments.length;
+  averageScore = Math.round(averageScore);
 
   const stats = {
     totalAssignments,
@@ -96,7 +96,7 @@ const StudentDashboard: React.FC = () => {
 
   const getAssignmentsData = async () => {
     try {
-      const response = await GetAssignmentsData();
+      const response = await GetAssignments();
       return response.data;
     } catch (err) {
       let errMsg = "Something went wrong";
@@ -114,7 +114,7 @@ const StudentDashboard: React.FC = () => {
     loaderDispatch({ type: "SHOW_LOADER" });
     (async () => {
       const assignmentsData = await getAssignmentsData();
-      console.log(assignments);
+      console.log(assignments, "assignments");
       setAssignments(assignmentsData);
     })();
     loaderDispatch({ type: "HIDE_LOADER" });
@@ -155,10 +155,12 @@ const StudentDashboard: React.FC = () => {
   );
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40 pt-4">
+    <div className="flex w-full flex-col bg-muted/40 pt-4 mt-10">
       <main className="flex-1 space-y-4 p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
-          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+          <h2 className="text-3xl font-bold tracking-tight">
+            Student Dashboard
+          </h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -172,9 +174,12 @@ const StudentDashboard: React.FC = () => {
                 {stats.completedAssignments}
               </div>
               <Progress
-                value={
-                  (stats.completedAssignments / stats.totalAssignments) * 100
-                }
+                value={Math.round(
+                  stats.totalAssignments === 0
+                    ? 100
+                    : (stats.completedAssignments / stats.totalAssignments) *
+                        100
+                )}
                 max={100}
                 className="mt-2"
               />
@@ -188,9 +193,15 @@ const StudentDashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {stats.averageScore.toFixed(1)}
+                {stats.totalAssignments === 0
+                  ? 100
+                  : stats.averageScore.toFixed(1)}
               </div>
-              <Progress value={stats.averageScore} max={100} className="mt-2" />
+              <Progress
+                value={stats.totalAssignments === 0 ? 100 : stats.averageScore}
+                max={100}
+                className="mt-2"
+              />
             </CardContent>
           </Card>
         </div>
