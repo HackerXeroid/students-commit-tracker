@@ -31,4 +31,26 @@ async function CreateAssignment(title: string, description: string, dueDate: str
   }
 }
 
-export { GetAllAssignments, CreateAssignment };
+interface AssignmentObj {
+  id: string;
+  title?: string;
+  description?: string;
+  dueDate?: string;
+  totalScore?: number;
+}
+
+async function EditAssignment(assignmentObj: AssignmentObj) {
+  try {
+    const response = await axiosInstance.put(`/api/v1/assignment/${assignmentObj.id}`, assignmentObj, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    });
+
+    return response.data;
+  } catch (err) {
+    throw err;
+  }
+}
+
+export { GetAllAssignments, CreateAssignment, EditAssignment };

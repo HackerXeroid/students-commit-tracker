@@ -28,7 +28,14 @@ import {
 } from "./ui/dialog";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
-import { GetAllAssignments, CreateAssignment } from "@/api/assignment";
+import {
+  GetAllAssignments,
+  CreateAssignment,
+  EditAssignment,
+} from "@/api/assignment";
+import { GetAllStudents } from "@/api/student";
+import { GetAllSubmissions } from "@/api/submission";
+import DateTimePicker from "./DateTimePicker";
 
 interface Assignment {
   id: string;
@@ -84,14 +91,40 @@ const TeacherDashboard: React.FC = () => {
     // },
   ]);
 
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-
   useEffect(() => {
     try {
       loaderDispatch({ type: "SHOW_LOADER" });
       (async () => {
         const data = await GetAllAssignments();
         setAssignments(data);
+      })();
+
+      (async () => {
+        const res = await GetAllStudents();
+        if (res.success) {
+          setStudents(
+            res.data.map((studentObj: Student) => ({
+              id: studentObj.id,
+              name: studentObj.name,
+              email: studentObj.email,
+            }))
+          );
+        } else throw new Error("Unable to fetch all students");
+      })();
+
+      (async () => {
+        const res = await GetAllSubmissions();
+        if (res.success) {
+          setSubmissions(
+            res.data.map((submissionObj: Submission) => ({
+              id: submissionObj.id,
+              studentId: submissionObj.studentId,
+              assignmentId: submissionObj.assignmentId,
+              score: submissionObj.score,
+              submissionDate: submissionObj.submissionDate,
+            }))
+          );
+        } else throw new Error("Unable to fetch Student Submissions");
       })();
     } catch (err) {
       toast({
@@ -108,25 +141,44 @@ const TeacherDashboard: React.FC = () => {
   const CreateAssignmentDialog: React.FC = () => {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
-    const [dueDate, setDueDate] = useState("");
+    const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
     const [totalScore, setTotalScore] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
 
     const handleSubmit = useCallback(
       async (event: React.FormEvent) => {
         event.preventDefault();
+        if (!dueDate || !title || !description || !totalScore) return;
+
         try {
           // Simulate API call
-          console.log(title, description, dueDate, totalScore);
+          const res = await CreateAssignment(
+            title,
+            description,
+            dueDate.toISOString(),
+            totalScore
+          );
+
           // Reset form fields and close dialog
           setIsOpen(false);
           setTitle("");
           setDescription("");
-          setDueDate("");
+          setDueDate(undefined);
           setTotalScore(0);
           toast({
             title: "Success",
             description: "Assignment created successfully",
+          });
+
+          setAssignments((prevAssignments) => {
+            const currentAssignment = {
+              id: res._id,
+              title: res.title,
+              description: res.description,
+              dueDate: res.dueDate,
+              totalScore: res.totalScore,
+            };
+            return [currentAssignment, ...prevAssignments];
           });
         } catch (error) {
           console.error(error);
@@ -134,7 +186,7 @@ const TeacherDashboard: React.FC = () => {
             title: "Error",
             description: "Failed to create assignment",
             variant: "destructive",
-            duration: 1500,
+            duration: 1000,
           });
         }
       },
@@ -184,13 +236,7 @@ const TeacherDashboard: React.FC = () => {
                 <Label htmlFor="dueDate" className="text-right">
                   Due Date
                 </Label>
-                <Input
-                  id="dueDate"
-                  type="datetime-local"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="col-span-3"
-                />
+                <DateTimePicker dueDate={dueDate} setDueDate={setDueDate} />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="totalScore" className="text-right">
@@ -205,7 +251,11 @@ const TeacherDashboard: React.FC = () => {
                 />
               </div>
             </div>
-            <Button type="submit">Create Assignment</Button>
+            <div>
+              <Button type="submit" className="w-full">
+                Create Assignment
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
@@ -214,63 +264,113 @@ const TeacherDashboard: React.FC = () => {
 
   const EditAssignmentDialog: React.FC<{ assignment: Assignment }> = ({
     assignment,
-  }) => (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline">Edit</Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>Edit Assignment</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="edit-title" className="text-right">
-              Title
-            </Label>
-            <Input
-              id="edit-title"
-              defaultValue={assignment.title}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="edit-description" className="text-right">
-              Description
-            </Label>
-            <Textarea
-              id="edit-description"
-              defaultValue={assignment.description}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="edit-dueDate" className="text-right">
-              Due Date
-            </Label>
-            <Input
-              id="edit-dueDate"
-              type="datetime-local"
-              defaultValue={assignment.dueDate}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="edit-totalScore" className="text-right">
-              Total Score
-            </Label>
-            <Input
-              id="edit-totalScore"
-              type="number"
-              defaultValue={assignment.totalScore}
-              className="col-span-3"
-            />
-          </div>
-        </div>
-        <Button type="submit">Update Assignment</Button>
-      </DialogContent>
-    </Dialog>
-  );
+  }) => {
+    const [title, setTitle] = useState<string>(assignment.title);
+    const [description, setDescription] = useState<string>(
+      assignment.description
+    );
+    const [dueDate, setDueDate] = useState<Date | undefined>(
+      new Date(assignment.dueDate)
+    );
+    const [totalScore, setTotalScore] = useState<number>(assignment.totalScore);
+    const [isOpen, setIsOpen] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      try {
+        const updatedAssignment = {
+          id: assignment.id,
+          title,
+          description,
+          dueDate: dueDate?.toISOString() ?? "",
+          totalScore,
+        };
+
+        await EditAssignment(updatedAssignment);
+        setAssignments((prevAssignments) => {
+          return prevAssignments.map((prevAssignment) =>
+            prevAssignment.id === updatedAssignment.id
+              ? updatedAssignment
+              : prevAssignment
+          );
+        });
+        setIsOpen(false);
+      } catch (err) {
+        toast({
+          title: "Error",
+          description: "Failed to edit assignment",
+          variant: "destructive",
+          duration: 500,
+        });
+      }
+    };
+
+    return (
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline">Edit</Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Assignment</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-title" className="text-right">
+                  Title
+                </Label>
+                <Input
+                  id="edit-title"
+                  value={title}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setTitle(e.target.value)
+                  }
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-description" className="text-right">
+                  Description
+                </Label>
+                <Textarea
+                  id="edit-description"
+                  value={description}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                    setDescription(e.target.value)
+                  }
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-dueDate" className="text-right">
+                  Due Date
+                </Label>
+                <DateTimePicker dueDate={dueDate} setDueDate={setDueDate} />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-totalScore" className="text-right">
+                  Total Score
+                </Label>
+                <Input
+                  id="edit-totalScore"
+                  type="number"
+                  value={totalScore}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setTotalScore(Number(e.target.value))
+                  }
+                  className="col-span-3"
+                />
+              </div>
+            </div>
+            <Button type="submit" className="w-full">
+              Update Assignment
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  };
 
   const StudentDetailsDialog: React.FC<{ student: Student }> = ({
     student,
@@ -278,10 +378,42 @@ const TeacherDashboard: React.FC = () => {
     const studentSubmissions = submissions.filter(
       (sub) => sub.studentId === student.id
     );
+
     const attemptedAssignments = studentSubmissions.length;
+    const attemptedAssignmentIds = studentSubmissions.map(
+      (sub) => sub.assignmentId
+    );
+
+    const currentTotal = studentSubmissions.reduce(
+      (acc, sub) => acc + (sub.score || 0),
+      0
+    );
+
+    const totalAttemptedMarks = assignments.reduce(
+      (acc, assignment) =>
+        attemptedAssignmentIds.includes(assignment.id)
+          ? acc + assignment.totalScore
+          : acc,
+      0
+    );
+
+    const missedAssignments = assignments.filter(
+      (assignment) =>
+        !attemptedAssignmentIds.includes(assignment.id) &&
+        new Date(assignment.dueDate) < new Date()
+    );
+
+    const totalMissedMarks = missedAssignments.reduce(
+      (acc, assignment) => acc + assignment.totalScore,
+      0
+    );
+
     const averageScore =
-      studentSubmissions.reduce((acc, sub) => acc + (sub.score || 0), 0) /
-      attemptedAssignments;
+      totalAttemptedMarks + totalMissedMarks > 0
+        ? Math.round(
+            (currentTotal / (totalAttemptedMarks + totalMissedMarks)) * 100
+          )
+        : 100;
 
     return (
       <Dialog>
@@ -298,8 +430,16 @@ const TeacherDashboard: React.FC = () => {
                 <CardTitle>Student Statistics</CardTitle>
               </CardHeader>
               <CardContent>
-                <p>Assignments Attempted: {attemptedAssignments}</p>
-                <p>Average Score: {averageScore.toFixed(2)}</p>
+                <p>
+                  <strong>Assignments Attempted:</strong> {attemptedAssignments}
+                </p>
+                <p>
+                  <strong>Assignments Missed:</strong>{" "}
+                  {missedAssignments.length}
+                </p>
+                <p>
+                  <strong>Average Score:</strong> {averageScore.toFixed(2)}
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -377,9 +517,20 @@ const TeacherDashboard: React.FC = () => {
                     {assignments.map((assignment) => (
                       <TableRow key={assignment.id}>
                         <TableCell>{assignment.title}</TableCell>
-                        <TableCell>{assignment.description}</TableCell>
                         <TableCell>
-                          {new Date(assignment.dueDate).toLocaleString()}
+                          <p className="overflow-hidden text-ellipsis whitespace-nowrap max-w-80">
+                            {assignment.description}
+                          </p>
+                        </TableCell>
+                        <TableCell>
+                          {new Intl.DateTimeFormat("en-US", {
+                            year: "numeric",
+                            month: "long",
+                            day: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          }).format(new Date(assignment.dueDate))}
                         </TableCell>
                         <TableCell>{assignment.totalScore}</TableCell>
                         <TableCell>

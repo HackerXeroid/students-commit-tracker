@@ -51,7 +51,7 @@ const GetCurrentUser = async () => {
 
 const DeleteUser = async () => {
   try {
-    await axiosInstance.delete("/api/v1/users",  {
+    await axiosInstance.delete("/api/v1/user",  {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("token")}`,
       },

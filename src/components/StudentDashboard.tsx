@@ -216,7 +216,9 @@ const StudentDashboard: React.FC = () => {
               <Input
                 placeholder="Search assignments..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setSearchTerm(e.target.value)
+                }
                 className="max-w-sm"
               />
               <Select
@@ -269,7 +271,7 @@ const StudentDashboard: React.FC = () => {
                             <TableCell className="font-medium">
                               {item.title}
                             </TableCell>
-                            <TableCell className="overflow-hidden text-ellipsis whitespace-nowrap">
+                            <TableCell className="w-5 overflow-hidden text-ellipsis whitespace-nowrap">
                               {item.description}
                             </TableCell>
                             <TableCell>
