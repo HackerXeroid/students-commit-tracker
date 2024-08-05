@@ -1,12 +1,18 @@
 import React from "react";
 
 export interface User {
+  _id?: string;
   id: string;
   name: string;
   email: string;
   password: string;
   createdAt?: Date;
-  role: "student" | "teacher" | "admin" | "teacher_pending" | "teacher_rejected";
+  role:
+    | "student"
+    | "teacher"
+    | "admin"
+    | "teacher_pending"
+    | "teacher_rejected";
 }
 
 export type UserOrNull = User | null;

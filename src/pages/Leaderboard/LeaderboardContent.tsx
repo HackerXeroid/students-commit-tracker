@@ -153,6 +153,7 @@ function LeaderboardContent() {
           return studentData;
         }
       );
+      console.log(leaderboardData);
 
       setData(leaderboardData);
     } catch (err) {

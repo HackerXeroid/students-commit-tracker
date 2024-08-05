@@ -22,11 +22,16 @@ interface Submission {
 
 async function CreateAndGradeSubmission(submission: Submission) {
   try {
-    const res = await axiosInstance.post("/api/v1/submission/grade", submission, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`
+    const res = await axiosInstance.post(
+      "/api/v1/submission/grade",
+      submission,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
       }
-    });
+    );
+    return res.data;
   } catch (err) {
     throw err;
   }
