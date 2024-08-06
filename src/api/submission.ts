@@ -2,7 +2,7 @@ import axiosInstance from ".";
 
 async function GetAllSubmissions() {
   try {
-    const res = await axiosInstance.get("/api/v1/submission", {
+    const res = await axiosInstance.get("/api/v1/submission/all", {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("token")}`,
       },
@@ -23,6 +23,26 @@ interface Submission {
 async function CreateAndGradeSubmission(submission: Submission) {
   try {
     const res = await axiosInstance.post(
+      "/api/v1/submission/create-and-grade",
+      submission,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+    return res.data;
+  } catch (err) {
+    throw err;
+  }
+}
+
+async function GradeSubmission(submission: {
+  submissionId: string;
+  githubLink: string;
+}) {
+  try {
+    const res = await axiosInstance.post(
       "/api/v1/submission/grade",
       submission,
       {
@@ -37,4 +57,4 @@ async function CreateAndGradeSubmission(submission: Submission) {
   }
 }
 
-export { GetAllSubmissions, CreateAndGradeSubmission };
+export { GetAllSubmissions, CreateAndGradeSubmission, GradeSubmission };

@@ -41,40 +41,51 @@ import {
 } from "./ui/dialog";
 import { UserContext } from "@/contexts/UserContext";
 import GradingSpinner from "./GradingSpinner";
-import { CreateAndGradeSubmission } from "@/api/submission";
+import { CreateAndGradeSubmission, GradeSubmission } from "@/api/submission";
 
 interface Assignment {
   id: string;
+  submissionId: string;
   title: string;
   description: string;
   status: "Pending" | "Completed" | "Missed";
   dueDate: string;
   yourScore: number | null;
   totalScore: number;
+  feedback: string;
 }
 
 interface SubmitButtonProps {
   onSubmit: (githubLink: string) => Promise<void>;
   disabled: boolean;
+  content?: string;
 }
 
-const SubmitButton: React.FC<SubmitButtonProps> = ({ onSubmit, disabled }) => {
+const SubmitButton: React.FC<SubmitButtonProps> = ({
+  onSubmit,
+  disabled,
+  content = "Submit",
+}) => {
   const [githubLink, setGithubLink] = useState<string>("");
   const [isOpen, setIsOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setGithubLink("");
-    setIsOpen(false);
+    try {
+      e.preventDefault();
+      setGithubLink("");
+      setIsOpen(false);
 
-    await onSubmit(githubLink);
+      await onSubmit(githubLink);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" disabled={disabled}>
-          Submit
+          {content}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
@@ -111,6 +122,45 @@ const SubmitButton: React.FC<SubmitButtonProps> = ({ onSubmit, disabled }) => {
   );
 };
 
+interface FeedbackDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  feedback: string;
+  score: number | null;
+  totalScore: number;
+}
+
+const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
+  isOpen,
+  onClose,
+  feedback,
+  score,
+  totalScore,
+}) => {
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Assignment Feedback</DialogTitle>
+        </DialogHeader>
+        <div className="mt-4">
+          <h4 className="font-semibold">Score:</h4>
+          <p>
+            {score !== null ? score : "-"} / {totalScore}
+          </p>
+        </div>
+        <div className="mt-4">
+          <h4 className="font-semibold">Feedback:</h4>
+          <p>{feedback || "No feedback provided."}</p>
+        </div>
+        <DialogFooter>
+          <Button onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 interface TableRowComponentProps {
   item: Assignment;
   studentId: string;
@@ -122,43 +172,101 @@ const TableRowComponent = ({
   studentId,
   setAssignments,
 }: TableRowComponentProps) => {
+  console.log(item, "item");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const assignmentId = item.id;
+  const submissionId = item.submissionId;
+  const isPastDeadline = new Date(item.dueDate) < new Date();
 
   const handleSubmit = async (githubLink: string) => {
     try {
       setIsSubmitting(true);
-      console.log({
-        assignmentId,
-        studentId,
-        githubLink,
-      });
       const res = await CreateAndGradeSubmission({
         assignmentId,
-        studentId,
         githubLink,
+        studentId,
       });
-      console.log(res);
 
-      setAssignments((prevAssignments) =>
-        prevAssignments.map((assignment) =>
+      console.log(res, "res");
+
+      // Extract data from the response
+      const yourScore: number | null = res.data.score;
+      const feedback: string = res.data.feedback;
+      const status: Assignment["status"] = "Completed";
+      const submissionId: string | null = res.data.submissionId;
+
+      setAssignments((prevAssignments) => {
+        // Update the specific assignment based on id
+        const updatedAssignments = prevAssignments.map((assignment) =>
           assignment.id === assignmentId
-            ? { ...assignment, status: "Completed", yourScore: res.data.score }
+            ? {
+                ...assignment,
+                status, // Ensure this matches the status type in the interface
+                yourScore, // Should be number | null
+                feedback, // Should be string
+                submissionId, // Submission ID
+              }
             : assignment
-        )
-      );
+        );
+
+        // Optionally reverse the order of the assignments if required
+        const newAssignments = updatedAssignments.reverse();
+
+        // Ensure that the updated array matches the Assignment[] type
+        return newAssignments;
+      });
     } catch (err) {
+      console.error(err);
       toast({
         title: "Error",
-        description:
-          err instanceof Error ? err.message : "Failed to submit assignment",
+        description: "Failed to submit assignment",
         variant: "destructive",
         duration: 1500,
       });
     } finally {
       setIsSubmitting(false);
     }
-    // Write the code for updating the assignment status of assignment with id = assignmentId to "Completed"
+  };
+
+  const handleResubmit = async (githubLink: string) => {
+    console.log({...item});
+    try {
+      console.log(item);
+      setIsSubmitting(true);
+      const res = await GradeSubmission({
+        submissionId: item.submissionId,
+        githubLink,
+      });
+      if (res.success) {
+        // Extract data from the response
+        const yourScore: number | null = res.data.score;
+        const feedback: string = res.data.feedback;
+
+        setAssignments((prevAssignments) => {
+          const updatedAssignments = prevAssignments.map((assignment) =>
+            assignment.id === assignmentId
+              ? {
+                  ...assignment,
+                  yourScore,
+                  feedback,
+                }
+              : assignment
+          );
+          return updatedAssignments;
+        });
+      } else throw new Error("Failed to resubmit assignment");
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Error",
+        description: "Failed to resubmit assignment",
+        variant: "destructive",
+        duration: 1500,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -195,12 +303,35 @@ const TableRowComponent = ({
         <TableCell>{item.yourScore !== null ? item.yourScore : "-"}</TableCell>
       )}
       <TableCell>{item.totalScore}</TableCell>
-      <TableCell>
-        <SubmitButton
-          onSubmit={handleSubmit}
-          disabled={isSubmitting || item.yourScore !== null}
-        />
+      <TableCell className="flex gap-2">
+        {item.status === "Completed" && !isPastDeadline && (
+          <SubmitButton
+            content="Re-submit"
+            onSubmit={handleResubmit}
+            disabled={isSubmitting}
+          />
+        )}
+        {item.status === "Completed" && (
+          <Button variant="outline" onClick={() => setShowFeedback(true)}>
+            View Feedback
+          </Button>
+        )}
+        {item.status === "Pending" && (
+          <SubmitButton
+            onSubmit={handleSubmit}
+            disabled={isSubmitting || item.yourScore !== null}
+          />
+        )}
       </TableCell>
+      {showFeedback && (
+        <FeedbackDialog
+          isOpen={showFeedback}
+          onClose={() => setShowFeedback(false)}
+          feedback={item.feedback}
+          score={item.yourScore}
+          totalScore={item.totalScore}
+        />
+      )}
     </TableRow>
   );
 };
@@ -240,8 +371,9 @@ const StudentDashboard: React.FC = () => {
     0
   );
 
-  averageScore = (averageScore * 100) / sumCompletedAssignmentsTotalScore;
-  averageScore = +averageScore.toFixed(1);
+  averageScore = averageScore * 100;
+  if (sumCompletedAssignmentsTotalScore > 0)
+    averageScore /= sumCompletedAssignmentsTotalScore;
 
   const stats = {
     totalAssignments,
@@ -279,7 +411,8 @@ const StudentDashboard: React.FC = () => {
     loaderDispatch({ type: "SHOW_LOADER" });
     (async () => {
       const assignmentsData = await getAssignmentsData();
-      setAssignments(assignmentsData);
+      console.log(assignmentsData);
+      setAssignments(assignmentsData || []);
     })();
     loaderDispatch({ type: "HIDE_LOADER" });
   }, []);

@@ -54,42 +54,22 @@ interface Student {
 interface Submission {
   id: string;
   assignmentId: string;
+  assignmentTitle: string;
   studentId: string;
   submissionDate: string;
+  githubLink: string;
+  feedback: string;
   score: number | null;
+  totalScore?: number;
 }
 
 const TeacherDashboard: React.FC = () => {
-  const { loaderState, loaderDispatch } = useContext(LoaderContext);
+  const { loaderDispatch } = useContext(LoaderContext);
   const { toast } = useToast();
 
-  const [assignments, setAssignments] = useState<Assignment[]>([
-    // {
-    //   id: "1",
-    //   title: "JavaScript Basics",
-    //   description: "Introduction to JavaScript fundamentals",
-    //   dueDate: "2024-08-15T23:59:59",
-    //   totalScore: 100,
-    // },
-  ]);
-
-  const [students, setStudents] = useState<Student[]>([
-    // {
-    //   id: "1",
-    //   name: "Alice Johnson",
-    //   email: "alice@example.com",
-    // },
-  ]);
-
-  const [submissions, setSubmissions] = useState<Submission[]>([
-    // {
-    //   id: "1",
-    //   assignmentId: "1",
-    //   studentId: "1",
-    //   submissionDate: "2024-08-14T14:30:00",
-    //   score: 90,
-    // },
-  ]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
 
   useEffect(() => {
     try {
@@ -97,6 +77,11 @@ const TeacherDashboard: React.FC = () => {
       (async () => {
         const data = await GetAllAssignments();
         setAssignments(data);
+      })();
+
+      (async () => {
+        const res = await GetAllSubmissions();
+        setSubmissions(res.data || []);
       })();
 
       (async () => {
@@ -110,21 +95,6 @@ const TeacherDashboard: React.FC = () => {
             }))
           );
         } else throw new Error("Unable to fetch all students");
-      })();
-
-      (async () => {
-        const res = await GetAllSubmissions();
-        if (res.success) {
-          setSubmissions(
-            res.data.map((submissionObj: Submission) => ({
-              id: submissionObj.id,
-              studentId: submissionObj.studentId,
-              assignmentId: submissionObj.assignmentId,
-              score: submissionObj.score,
-              submissionDate: submissionObj.submissionDate,
-            }))
-          );
-        } else throw new Error("Unable to fetch Student Submissions");
       })();
     } catch (err) {
       toast({
@@ -375,46 +345,57 @@ const TeacherDashboard: React.FC = () => {
   const StudentDetailsDialog: React.FC<{ student: Student }> = ({
     student,
   }) => {
-    const studentSubmissions = submissions.filter(
-      (sub) => sub.studentId === student.id
+    // Student's POV
+    let completedAssignments = submissions.filter(
+      (sub) => sub.studentId === student.id && sub.score !== null
     );
+    completedAssignments = completedAssignments.map((sub) => {
+      const assignment = assignments.find((a) => a.id === sub.assignmentId);
+      return {
+        ...sub,
+        assignmentTitle: assignment?.title || "",
+        totalScore: assignment?.totalScore || 0,
+      };
+    });
 
-    const attemptedAssignments = studentSubmissions.length;
-    const attemptedAssignmentIds = studentSubmissions.map(
-      (sub) => sub.assignmentId
-    );
+    const missedAssignments = assignments.filter((assignment) => {
+      const submission = submissions.find(
+        (sub) =>
+          sub.studentId === student.id && sub.assignmentId === assignment.id
+      );
+      return !submission && new Date(assignment.dueDate) < new Date();
+    });
 
-    const currentTotal = studentSubmissions.reduce(
-      (acc, sub) => acc + (sub.score || 0),
+    const scoredCompletedAssignmentMarks = completedAssignments.reduce(
+      (acc, assignment) => acc + (assignment?.score || 0),
       0
     );
 
-    const totalAttemptedMarks = assignments.reduce(
-      (acc, assignment) =>
-        attemptedAssignmentIds.includes(assignment.id)
-          ? acc + assignment.totalScore
-          : acc,
+    const totalCompletedAssignmentMarks = completedAssignments.reduce(
+      (acc, assignment) => acc + (assignment.totalScore || 0),
       0
     );
 
-    const missedAssignments = assignments.filter(
-      (assignment) =>
-        !attemptedAssignmentIds.includes(assignment.id) &&
-        new Date(assignment.dueDate) < new Date()
-    );
-
-    const totalMissedMarks = missedAssignments.reduce(
+    const totalMissedAssignmentMarks = missedAssignments.reduce(
       (acc, assignment) => acc + assignment.totalScore,
       0
     );
+    console.log(student.name, "student.name");
+    console.log(
+      scoredCompletedAssignmentMarks,
+      "scoredCompletedAssignmentMarks"
+    );
+    console.log(totalCompletedAssignmentMarks, "totalCompletedAssignmentMarks");
+    console.log(totalMissedAssignmentMarks, "totalMissedAssignmentMarks");
 
-    const averageScore =
-      totalAttemptedMarks + totalMissedMarks > 0
-        ? Math.round(
-            (currentTotal / (totalAttemptedMarks + totalMissedMarks)) * 100
-          )
-        : 100;
+    let averageScore = scoredCompletedAssignmentMarks;
+    averageScore *= 100;
+    if (completedAssignments.length + missedAssignments.length > 0)
+      averageScore /=
+        (totalCompletedAssignmentMarks + totalMissedAssignmentMarks);
 
+    if (completedAssignments.length + missedAssignments.length === 0)
+      averageScore = 100;
     return (
       <Dialog>
         <DialogTrigger asChild>
@@ -431,14 +412,15 @@ const TeacherDashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <p>
-                  <strong>Assignments Attempted:</strong> {attemptedAssignments}
+                  <strong>Assignments Completed:</strong>{" "}
+                  {completedAssignments.length}
                 </p>
                 <p>
                   <strong>Assignments Missed:</strong>{" "}
                   {missedAssignments.length}
                 </p>
                 <p>
-                  <strong>Average Score:</strong> {averageScore.toFixed(2)}
+                  <strong>Average Score:</strong> {averageScore.toFixed(1)}
                 </p>
               </CardContent>
             </Card>
@@ -452,19 +434,26 @@ const TeacherDashboard: React.FC = () => {
                     <TableRow>
                       <TableHead>Assignment</TableHead>
                       <TableHead>Submission Date</TableHead>
+                      <TableHead>Github Link</TableHead>
                       <TableHead>Score</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {studentSubmissions.map((sub) => {
-                      const assignment = assignments.find(
-                        (a) => a.id === sub.assignmentId
-                      );
+                    {completedAssignments.map((sub) => {
                       return (
                         <TableRow key={sub.id}>
-                          <TableCell>{assignment?.title}</TableCell>
+                          <TableCell>{sub.assignmentTitle}</TableCell>
                           <TableCell>
                             {new Date(sub.submissionDate).toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <a
+                              href={sub.githubLink}
+                              className="underline"
+                              target="_blank"
+                            >
+                              {sub.githubLink}
+                            </a>
                           </TableCell>
                           <TableCell>
                             {sub.score !== null ? sub.score : "Not graded"}
