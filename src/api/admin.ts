@@ -3,7 +3,7 @@ import axiosInstance from ".";
 export async function GetAllTeacherStatus() {
   try {
     const response = await axiosInstance.get(
-      "/api/v1/admin/all-teacher-status",
+      `/api/v1/admin/all-teacher-status`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
