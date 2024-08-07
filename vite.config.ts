@@ -12,7 +12,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:3000",
+        target: "https://students-commit-tracker-backend.onrender.com",
         changeOrigin: true,
         secure: false,
       },
