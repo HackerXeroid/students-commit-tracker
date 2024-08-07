@@ -176,7 +176,6 @@ const TableRowComponent = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const assignmentId = item.id;
-  const submissionId = item.submissionId;
   const isPastDeadline = new Date(item.dueDate) < new Date();
 
   const handleSubmit = async (githubLink: string) => {
@@ -194,7 +193,7 @@ const TableRowComponent = ({
       const yourScore: number | null = res.data.score;
       const feedback: string = res.data.feedback;
       const status: Assignment["status"] = "Completed";
-      const submissionId: string | null = res.data.submissionId;
+      const submissionId: string = res.data.submissionId;
 
       setAssignments((prevAssignments) => {
         // Update the specific assignment based on id
@@ -230,7 +229,7 @@ const TableRowComponent = ({
   };
 
   const handleResubmit = async (githubLink: string) => {
-    console.log({...item});
+    console.log({ ...item });
     try {
       console.log(item);
       setIsSubmitting(true);
@@ -416,42 +415,6 @@ const StudentDashboard: React.FC = () => {
     })();
     loaderDispatch({ type: "HIDE_LOADER" });
   }, []);
-
-  const handleSubmitAssignment = async (studentSubmission: {
-    assignmentId: string;
-    githubLink: string;
-    studentId: string;
-  }) => {
-    try {
-      console.log(studentSubmission);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      setAssignments((prevAssignments) =>
-        prevAssignments.map((assignment) =>
-          assignment.id === studentSubmission.assignmentId
-            ? { ...assignment, status: "Completed" }
-            : assignment
-        )
-      );
-
-      toast({
-        title: "Success",
-        description: "Assignment submitted successfully",
-        variant: "default",
-        duration: 1500,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to submit assignment",
-        variant: "destructive",
-        duration: 1500,
-      });
-    }
-  };
 
   return (
     <div className="flex w-full flex-col bg-muted/40 pt-4 mt-10">
